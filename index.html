@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>心率歷史數據監控中心</title>
-  <!-- 載入 Firebase -->
+  <title>心率歷史數據查詢系統</title>
+  <!-- 載入 Firebase 8.x SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <!-- 載入 Chart.js -->
+  <!-- 載入 Chart.js 畫圖工具 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <style>
@@ -19,6 +19,7 @@
       --success-color: #38a169;
       --danger-color: #e53e3e;
       --border-color: #e2e8f0;
+      --dark-gray: #4a5568;
     }
 
     body {
@@ -34,52 +35,115 @@
       margin: 0 auto;
     }
 
+    /* 頂部標題 */
     header {
+      background-color: var(--dark-gray);
+      color: white;
+      padding: 15px 20px;
+      border-radius: 10px 10px 0 0;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 2px solid var(--border-color);
-      padding-bottom: 15px;
     }
 
-    h1 {
+    header h1 {
       margin: 0;
-      font-size: 24px;
-      color: #1a202c;
+      font-size: 20px;
     }
 
-    /* 統計卡片 */
-    .stats-grid {
+    /* 時間軸篩選與控制區 */
+    .filter-section {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 0 0 10px 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+
+    .filter-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-group label {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: var(--dark-gray);
+    }
+
+    .filter-group input {
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    /* 按鈕樣式 */
+    .btn {
+      background-color: #2b6cb0;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background-color: #1a365d;
+    }
+
+    .btn-secondary {
+      background-color: #edf2f7;
+      color: #2d3748;
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: #e2e8f0;
+    }
+
+    /* 摺疊面板：預設隱藏數據 */
+    .collapse-content {
+      display: none; /* 預設隱藏 */
+    }
+
+    .collapse-content.show {
+      display: block; /* 展開時顯示 */
+    }
+
+    /* 統計區 */
+    .stats-card {
+      background: #319795;
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
       margin-bottom: 20px;
     }
 
-    .stat-card {
-      background: var(--card-bg);
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      border: 1px solid var(--border-color);
-      text-align: center;
-    }
-
-    .stat-card h3 {
-      margin: 0 0 10px 0;
-      font-size: 14px;
-      color: #718096;
-      text-transform: uppercase;
-    }
-
-    .stat-card .value {
-      font-size: 28px;
+    .stats-card .value {
+      font-size: 48px;
       font-weight: bold;
-      color: var(--primary-color);
     }
 
-    /* 圖表與表格區 */
+    /* 圖表與表格 */
     .dashboard-section {
       background: var(--card-bg);
       padding: 20px;
@@ -89,47 +153,14 @@
       margin-bottom: 20px;
     }
 
-    .section-title {
-      font-size: 18px;
-      font-weight: bold;
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
     .chart-container {
       position: relative;
       height: 300px;
       width: 100%;
     }
 
-    /* 按鈕與控制列 */
-    .btn {
-      background-color: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-
-    .btn:hover {
-      background-color: #2b6cb0;
-    }
-
-    .btn-danger {
-      background-color: var(--danger-color);
-    }
-    .btn-danger:hover {
-      background-color: #c53030;
-    }
-
-    /* 表格樣式 */
     .table-responsive {
-      max-height: 400px;
+      max-height: 300px;
       overflow-y: auto;
       border: 1px solid var(--border-color);
       border-radius: 5px;
@@ -152,124 +183,110 @@
       top: 0;
       color: #4a5568;
     }
-
-    tr:hover {
-      background-color: #f7fafc;
-    }
-
-    .status-badge {
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-
-    .status-active {
-      background-color: #c6f6d5;
-      color: #22543d;
-    }
-
-    .status-inactive {
-      background-color: #fed7d7;
-      color: #742a2a;
-    }
   </style>
 </head>
 <body>
 
   <div class="container">
+    <!-- 1. 頂部標題列 -->
     <header>
-      <div>
-        <h1>心率量測歷史數據中心</h1>
-        <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">即時讀取自 Firebase 雲端資料庫</p>
-      </div>
-      <div>
-        <button class="btn" onclick="exportToCSV()">匯出 Excel (CSV)</button>
-        <button class="btn btn-danger" onclick="clearDatabase()" style="margin-left: 10px;">清空歷史紀錄</button>
-      </div>
+      <h1>基本資料 & 記錄查詢</h1>
+      <span style="font-size: 14px;">姓名：莊智</span>
     </header>
 
-    <!-- 統計卡片列 -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <h3>最新心率</h3>
-        <div class="value" id="current-val">-- <span style="font-size:16px;">BPM</span></div>
+    <!-- 2. 時間軸篩選控制區 -->
+    <div class="filter-section">
+      <div class="filter-grid">
+        <div class="filter-group">
+          <label>開始日期</label>
+          <input type="date" id="start-date">
+        </div>
+        <div class="filter-group">
+          <label>結束日期</label>
+          <input type="date" id="end-date">
+        </div>
       </div>
-      <div class="stat-card">
-        <h3>歷史最高心率</h3>
-        <div class="value" id="max-val" style="color: var(--danger-color);">-- <span style="font-size:16px;">BPM</span></div>
-      </div>
-      <div class="stat-card">
-        <h3>歷史最低心率</h3>
-        <div class="value" id="min-val" style="color: #d69e2e;">-- <span style="font-size:16px;">BPM</span></div>
-      </div>
-      <div class="stat-card">
-        <h3>歷史平均心率</h3>
-        <div class="value" id="avg-val" style="color: var(--success-color);">-- <span style="font-size:16px;">BPM</span></div>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="resetFilters()">清空條件</button>
+        <button class="btn" onclick="toggleAndQuery()">🔍 送出查詢並展開數據</button>
       </div>
     </div>
 
-    <!-- 歷史走勢圖表 -->
-    <div class="dashboard-section">
-      <div class="section-title">
-        <span>心率走勢圖（最新 100 筆紀錄）</span>
+    <!-- 3. 預設隱藏的數據區（點擊查詢後才展示） -->
+    <div id="data-area" class="collapse-content">
+      
+      <!-- 數值顯示 -->
+      <div class="stats-card">
+        <div style="font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">所選區間平均心跳</div>
+        <div class="value" id="avg-bpm">0 <span style="font-size: 20px;">/min</span></div>
+        <div id="query-range-text" style="font-size: 12px; margin-top: 5px; opacity: 0.8;"></div>
       </div>
-      <div class="chart-container">
-        <canvas id="historyChart"></canvas>
-      </div>
-    </div>
 
-    <!-- 歷史數據細節表格 -->
-    <div class="dashboard-section">
-      <div class="section-title">
-        <span>歷史數據細節表格</span>
-        <span style="font-size: 14px; font-weight: normal; color: #718096;" id="record-count">總筆數: 0</span>
+      <!-- 趨勢圖表 -->
+      <div class="dashboard-section">
+        <h3 style="margin-top: 0;">心率活動度走勢圖</h3>
+        <div class="chart-container">
+          <canvas id="historyChart"></canvas>
+        </div>
       </div>
-      <div class="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              <th>量測序號</th>
-              <th>量測時間</th>
-              <th>心率數值 (BPM)</th>
-              <th>配戴狀態</th>
-            </tr>
-          </thead>
-          <tbody id="data-table-body">
-            <tr>
-              <td colspan="4" style="text-align: center; color: #a0aec0;">等待數據加載中...</td>
-            </tr>
-          </tbody>
-        </table>
+
+      <!-- 細節表格 -->
+      <div class="dashboard-section">
+        <h3 style="margin-top: 0; display: flex; justify-content: space-between;">
+          <span>量測歷史明細</span>
+          <span id="record-count" style="font-size: 14px; color: #718096; font-weight: normal;">共 0 筆紀錄</span>
+        </h3>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>序號</th>
+                <th>量測日期與時間</th>
+                <th>心率 (BPM)</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <tr>
+                <td colspan="3" style="text-align: center; color: #a0aec0;">無符合篩選條件的數據</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+
     </div>
   </div>
 
   <script>
     // ================= 1. Firebase 初始化 =================
+    // 對接與你的 ESP32 相同的 Firebase 即時資料庫
     const firebaseConfig = {
       databaseURL: "https://heart-c720e-default-rtdb.firebaseio.com" 
     };
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    // 全域變數用於存儲下載下來的數據
-    let allRecords = [];
+    let allRawData = []; // 存放從 Firebase 下載的所有歷史數據
+
+    // 設定預設日期為今天
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('start-date').value = todayStr;
+    document.getElementById('end-date').value = todayStr;
 
     // ================= 2. 初始化 Chart.js 圖表 =================
     const ctx = document.getElementById('historyChart').getContext('2d');
     const historyChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: [], // 時間標籤
+        labels: [],
         datasets: [{
-          label: '心率 (BPM)',
+          label: '心拍數 (BPM)',
           data: [],
-          borderColor: '#3182ce',
-          backgroundColor: 'rgba(49, 130, 206, 0.1)',
+          borderColor: '#319795',
+          backgroundColor: 'rgba(49, 151, 149, 0.1)',
           borderWidth: 2,
-          pointRadius: 3,
-          tension: 0.2,
+          pointRadius: 4,
+          tension: 0.1,
           fill: true
         }]
       },
@@ -277,141 +294,110 @@
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          y: { min: 0, max: 180, ticks: { stepSize: 20 } }
+          y: { min: 40, max: 180 }
         }
       }
     });
 
-    // ================= 3. 監聽 Firebase 數據變化 =================
-    // 我們抓取最近的 200 筆數據來分析與呈現
-    const historyRef = database.ref('/heartRateHistory').limitToLast(200);
-
-    historyRef.on('value', (snapshot) => {
+    // ================= 3. 即時載入 Firebase 數據備用 =================
+    database.ref('/heartRateHistory').on('value', (snapshot) => {
       const data = snapshot.val();
-      if (!data) {
-        document.getElementById('data-table-body').innerHTML = `<tr><td colspan="4" style="text-align: center; color: #a0aec0;">資料庫目前沒有任何紀錄。</td></tr>`;
-        updateStats([]);
+      allRawData = [];
+      if (!data) return;
+
+      Object.keys(data).forEach((key) => {
+        const item = data[key];
+        // 讀取帶有 timestamp 結構的數據
+        if (typeof item === 'object' && item.timestamp) {
+          allRawData.push({
+            timestamp: item.timestamp,
+            bpm: item.bpm
+          });
+        }
+      });
+    });
+
+    // ================= 4. 點擊送出查詢時的動作 (展開並篩選數據) =================
+    function toggleAndQuery() {
+      // 展開數據區域
+      document.getElementById('data-area').classList.add('show');
+
+      // 取得使用者設定的時間軸區間
+      const startDateVal = document.getElementById('start-date').value;
+      const endDateVal = document.getElementById('end-date').value;
+
+      if (!startDateVal || !endDateVal) {
+        alert("請選擇完整的開始與結束日期！");
         return;
       }
 
-      // 將 Firebase 物件轉換成陣列，並手動補上估算時間 (假設每秒一筆)
-      allRecords = [];
-      let index = 1;
-      const baseTime = new Date();
-      
-      Object.keys(data).forEach((key) => {
-        const bpm = data[key];
-        // 模擬時間點：最新的一筆為當下時間，舊的往前扣一秒
-        const recordTime = new Date(baseTime.getTime() - (Object.keys(data).length - index) * 1000);
-        
-        allRecords.push({
-          id: index,
-          firebaseKey: key,
-          bpm: bpm,
-          timeStr: recordTime.toLocaleTimeString(),
-          isWearing: bpm > 0
-        });
-        index++;
+      // 設定搜尋的精確時間毫秒數 (自開始日 00:00:00 至 結束日 23:59:59)
+      const startMs = new Date(startDateVal + "T00:00:00").getTime();
+      const endMs = new Date(endDateVal + "T23:59:59").getTime();
+
+      // 篩選出時間軸範圍內的數據
+      const filteredData = allRawData.filter(item => item.timestamp >= startMs && item.timestamp <= endMs);
+
+      // 依時間由舊到新排序
+      filteredData.sort((a, b) => a.timestamp - b.timestamp);
+
+      updateDashboard(filteredData, startDateVal, endDateVal);
+    }
+
+    // ================= 5. 更新圖表與表格數據 =================
+    function updateDashboard(dataList, startDate, endDate) {
+      document.getElementById('query-range-text').innerText = `查詢區間：${startDate} ~ ${endDate}`;
+      document.getElementById('record-count').innerText = `共 ${dataList.length} 筆紀錄`;
+
+      if (dataList.length === 0) {
+        document.getElementById('avg-bpm').innerHTML = `0 <span style="font-size: 20px;">/min</span>`;
+        document.getElementById('table-body').innerHTML = `<tr><td colspan="3" style="text-align: center; color: #a0aec0;">此區間無任何量測紀錄</td></tr>`;
+        historyChart.data.labels = [];
+        historyChart.data.datasets[0].data = [];
+        historyChart.update();
+        return;
+      }
+
+      // 1. 計算平均值
+      const totalBpm = dataList.reduce((sum, item) => sum + item.bpm, 0);
+      const avgBpm = Math.round(totalBpm / dataList.length);
+      document.getElementById('avg-bpm').innerHTML = `${avgBpm} <span style="font-size: 20px;">/min</span>`;
+
+      // 2. 更新走勢圖表
+      const labels = dataList.map(item => {
+        const d = new Date(item.timestamp);
+        return `${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
       });
+      const bpms = dataList.map(item => item.bpm);
 
-      // 1. 更新統計卡片
-      updateStats(allRecords);
-
-      // 2. 更新圖表 (只顯示最新 100 筆，避免畫面太擠)
-      const chartRecords = allRecords.slice(-100);
-      historyChart.data.labels = chartRecords.map(r => r.timeStr);
-      historyChart.data.datasets[0].data = chartRecords.map(r => r.bpm);
+      historyChart.data.labels = labels;
+      historyChart.data.datasets[0].data = bpms;
       historyChart.update();
 
-      // 3. 更新數據表格 (倒序顯示，最新的在最上面)
-      const tableBody = document.getElementById('data-table-body');
+      // 3. 更新明細表格（最新時間排最上面）
+      const tableBody = document.getElementById('table-body');
       tableBody.innerHTML = '';
-      
-      const displayRecords = [...allRecords].reverse(); // 倒序
-      displayRecords.forEach((r) => {
+      const displayList = [...dataList].reverse();
+
+      displayList.forEach((item, index) => {
+        const d = new Date(item.timestamp);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${d.toLocaleTimeString()}`;
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>#${r.id}</td>
-          <td>${r.timeStr}</td>
-          <td style="font-weight: bold; color: ${r.bpm > 0 ? 'var(--primary-color)' : 'var(--danger-color)'}">${r.bpm} BPM</td>
-          <td>
-            <span class="status-badge ${r.isWearing ? 'status-active' : 'status-inactive'}">
-              ${r.isWearing ? '配戴中' : '未配戴'}
-            </span>
-          </td>
+          <td>#${displayList.length - index}</td>
+          <td>${dateStr}</td>
+          <td style="font-weight: bold; color: #319795;">${item.bpm} BPM</td>
         `;
         tableBody.appendChild(tr);
       });
-
-      document.getElementById('record-count').innerText = `總筆數: ${allRecords.length}`;
-    });
-
-    // ================= 4. 統計計算邏輯 =================
-    function updateStats(records) {
-      if (records.length === 0) {
-        document.getElementById('current-val').innerHTML = `-- <span style="font-size:16px;">BPM</span>`;
-        document.getElementById('max-val').innerText = '--';
-        document.getElementById('min-val').innerText = '--';
-        document.getElementById('avg-val').innerText = '--';
-        return;
-      }
-
-      const latest = records[records.length - 1];
-      // 排除 0 (未配戴) 的極端值來計算統計資料才準確
-      const validBeats = records.filter(r => r.bpm > 0).map(r => r.bpm);
-
-      document.getElementById('current-val').innerHTML = `${latest.bpm} <span style="font-size:16px;">BPM</span>`;
-
-      if (validBeats.length > 0) {
-        const max = Math.max(...validBeats);
-        const min = Math.min(...validBeats);
-        const avg = Math.round(validBeats.reduce((a, b) => a + b, 0) / validBeats.length);
-
-        document.getElementById('max-val').innerHTML = `${max} <span style="font-size:12px;">BPM</span>`;
-        document.getElementById('min-val').innerHTML = `${min} <span style="font-size:12px;">BPM</span>`;
-        document.getElementById('avg-val').innerHTML = `${avg} <span style="font-size:12px;">BPM</span>`;
-      } else {
-        document.getElementById('max-val').innerText = '--';
-        document.getElementById('min-val').innerText = '--';
-        document.getElementById('avg-val').innerText = '--';
-      }
     }
 
-    // ================= 5. 歷史數據匯出 CSV 檔 =================
-    function exportToCSV() {
-      if (allRecords.length === 0) {
-        alert("目前尚無數據可供匯出！");
-        return;
-      }
-
-      let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // 加上 \uFEFF 防止 Excel 開啟時中文亂碼
-      csvContent += "量測序號,時間,心率 (BPM),狀態\r\n";
-
-      allRecords.forEach((r) => {
-        const status = r.isWearing ? "正常配戴" : "未配戴";
-        csvContent += `${r.id},${r.timeStr},${r.bpm},${status}\r\n`;
-      });
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "心率歷史數據日誌.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    // ================= 6. 清除歷史紀錄功能 =================
-    function clearDatabase() {
-      if (confirm("⚠️ 您確定要清空雲端 Firebase 所有的歷史心率數據嗎？此操作無法還原！")) {
-        database.ref('/heartRateHistory').remove()
-          .then(() => {
-            alert("歷史紀錄已成功清空。");
-          })
-          .catch((error) => {
-            alert("清除失敗: " + error.message);
-          });
-      }
+    // ================= 6. 清空篩選條件 =================
+    function resetFilters() {
+      document.getElementById('start-date').value = todayStr;
+      document.getElementById('end-date').value = todayStr;
+      document.getElementById('data-area').classList.remove('show'); // 重新隱藏數據
     }
   </script>
 </body>
