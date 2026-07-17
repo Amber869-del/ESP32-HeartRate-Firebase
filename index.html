@@ -51,7 +51,7 @@
       font-size: 20px;
     }
 
-    /* ❤️ 即時心率看板（移到最上方，一開網頁直接顯示，不需要展開） */
+    /* ❤️ 即時心率看板 */
     .realtime-section {
       margin-bottom: 20px;
     }
@@ -73,7 +73,7 @@
       transition: transform 0.1s ease;
     }
 
-    /* 時間軸篩選與控制區 */
+    /* 時間軸篩選控制區 */
     .filter-section {
       background: var(--card-bg);
       padding: 20px;
@@ -115,7 +115,7 @@
       justify-content: flex-end;
     }
 
-    /* 按鈕樣式 */
+    /* 按鈕 */
     .btn {
       background-color: #2b6cb0;
       color: white;
@@ -221,7 +221,7 @@
       <div id="realtime-card">
         <div style="font-size: 16px; font-weight: bold; letter-spacing: 1px;">❤️ 當前即時心率 (LIVE)</div>
         <div id="realtime-bpm">-- <span style="font-size: 24px;">BPM</span></div>
-        <div id="realtime-status" style="font-size: 14px; opacity: 0.9;">讀取中...</div>
+        <div id="realtime-status" style="font-size: 14px; opacity: 0.9;">初始化中...</div>
       </div>
     </div>
 
@@ -345,30 +345,31 @@
         }
       });
 
-      // 如果網頁已經點擊查詢展開，自動即時重畫圖表
       const dataArea = document.getElementById('data-area');
       if (dataArea.classList.contains('show')) {
         toggleAndQuery(); 
       }
     });
 
-    // ================= 4. ❤️ 毫秒級即時監聽當前心率 (Live Update) =================
+    // ================= 4. ❤️ 毫秒級即時監聽當前心率 (一體化讀取) =================
     database.ref('/currentStatus').on('value', (snapshot) => {
       const status = snapshot.val();
       const realtimeBpmEl = document.getElementById('realtime-bpm');
       const realtimeStatusEl = document.getElementById('realtime-status');
       const realtimeCard = document.getElementById('realtime-card');
 
-      if (status && status.isWearing && status.bpm > 0) {
+      // 嚴格判定：必須 isWearing 為 true 且 bpm 大於 0
+      if (status && status.isWearing === true && status.bpm > 0) {
         realtimeCard.style.background = '#e53e3e';
         realtimeCard.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
         realtimeBpmEl.innerHTML = `${status.bpm} <span style="font-size: 24px;">BPM</span>`;
         realtimeStatusEl.innerText = "⚡ 正在進行即時量測...";
         
-        // 即時心跳縮放特效
+        // 心跳縮放特效
         realtimeBpmEl.style.transform = "scale(1.1)";
         setTimeout(() => { realtimeBpmEl.style.transform = "scale(1)"; }, 100);
       } else {
+        // 只要未配戴或數值異常，一律瞬間回歸未配戴狀態，絕不延遲與留值
         realtimeCard.style.background = '#718096';
         realtimeCard.style.boxShadow = 'none';
         realtimeBpmEl.innerHTML = `-- <span style="font-size: 24px;">BPM</span>`;
