@@ -136,12 +136,9 @@
       background-color: #e2e8f0;
     }
 
-    .collapse-content {
+    /* 初始狀態直接設為隱藏，不加 show class 避免複雜度 */
+    #data-area {
       display: none;
-    }
-
-    .collapse-content.show {
-      display: block;
     }
 
     .stats-card {
@@ -234,8 +231,8 @@
       </div>
     </div>
 
-    <!-- 歷史數據展示區 (折疊) -->
-    <div id="data-area" class="collapse-content">
+    <!-- 歷史數據展示區 (初始由 JS 控制 style.display="none") -->
+    <div id="data-area">
       
       <!-- 區間平均值 -->
       <div class="stats-card">
@@ -292,6 +289,9 @@
     document.getElementById('start-date').value = todayStr;
     document.getElementById('end-date').value = todayStr;
 
+    // 用一個全域 JS 變數，100% 精準掌握當下面板是打開還是關閉
+    let isDataAreaOpen = false; 
+
     // --- 2. 初始化 Chart.js ---
     const ctx = document.getElementById('historyChart').getContext('2d');
     const historyChart = new Chart(ctx, {
@@ -334,9 +334,8 @@
         }
       });
 
-      const dataArea = document.getElementById('data-area');
-      if (dataArea.classList.contains('show')) {
-        // 如果歷史區域已經打開，即時重刷數據
+      // 如果當前狀態面板是打開的，自動刷新資料
+      if (isDataAreaOpen) {
         refreshQuery(); 
       }
     });
@@ -362,7 +361,7 @@
       const realtimeCard = document.getElementById('realtime-card');
 
       if (status && status.isWearing === true && status.bpm > 0) {
-        lastReceivedTime = Date.now(); // 重置時間
+        lastReceivedTime = Date.now(); // 收到訊號，更新時間戳記
 
         realtimeCard.style.background = '#e53e3e';
         realtimeCard.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
@@ -376,32 +375,35 @@
       }
     });
 
-    // 【看門狗防護】超過 2.5 秒未更新，強制網頁端歸零
+    // 【看門狗】每 1.5 秒確認一次。若超過 2.5 秒沒更新即時資料，強制歸零
     setInterval(() => {
       if (Date.now() - lastReceivedTime > 2500) {
         resetToIdle();
       }
     }, 1500);
 
-    // --- 5. 點擊按鈕開關與查詢控制 ---
+    // --- 5. 點擊按鈕開關與查詢控制 (核心修正：不靠 CSS 切換，改用 JS 變數) ---
     function toggleAndQuery() {
       const dataArea = document.getElementById('data-area');
       const btn = document.getElementById('toggle-btn');
 
-      if (dataArea.classList.contains('show')) {
-        // 如果原本是開著，點一下就縮起來（隱藏）
-        dataArea.classList.remove('show');
+      if (isDataAreaOpen) {
+        // 如果目前是開著的，點一下直接隱藏，並更新狀態
+        dataArea.style.display = "none";
         btn.innerHTML = "🔍 送出查詢並展開歷史數據";
+        isDataAreaOpen = false;
       } else {
-        // 如果原本是關閉，送出查詢並展開
-        if (refreshQuery()) {
-          dataArea.classList.add('show');
+        // 如果目前是關閉的，嘗試撈取並更新資料，成功後展開
+        const isSuccess = refreshQuery();
+        if (isSuccess) {
+          dataArea.style.display = "block";
           btn.innerHTML = "❌ 關閉歷史數據面板";
+          isDataAreaOpen = true;
         }
       }
     }
 
-    // 核心資料更新函式
+    // 歷史數據過濾
     function refreshQuery() {
       const startDateVal = document.getElementById('start-date').value;
       const endDateVal = document.getElementById('end-date').value;
@@ -411,8 +413,9 @@
         return false;
       }
 
-      const startMs = new Date(startDateVal + "T00:00:00").getTime();
-      const endMs = new Date(endDateVal + "T23:59:59").getTime();
+      // 相容各瀏覽器的 Date 轉換機制
+      const startMs = new Date(startDateVal.replace(/-/g, '/') + " 00:00:00").getTime();
+      const endMs = new Date(endDateVal.replace(/-/g, '/') + " 23:59:59").getTime();
 
       const filteredData = allRawData.filter(item => item.timestamp >= startMs && item.timestamp <= endMs);
       filteredData.sort((a, b) => a.timestamp - b.timestamp);
@@ -470,8 +473,11 @@
     function resetFilters() {
       document.getElementById('start-date').value = todayStr;
       document.getElementById('end-date').value = todayStr;
-      document.getElementById('data-area').classList.remove('show'); 
+      
+      const dataArea = document.getElementById('data-area');
+      dataArea.style.display = "none"; // 強制隱藏
       document.getElementById('toggle-btn').innerHTML = "🔍 送出查詢並展開歷史數據";
+      isDataAreaOpen = false; // 重置開關狀態
     }
   </script>
 </body>
