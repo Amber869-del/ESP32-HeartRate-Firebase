@@ -60,7 +60,7 @@
       border-radius: 0 0 10px 10px;
       text-align: center;
       box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      transition: all 0.2s ease;
+      transition: all 0.3s ease;
     }
 
     #realtime-bpm {
@@ -204,7 +204,7 @@
   <div class="container">
     <header>
       <h1>即時監測 & 歷史查詢</h1>
-      <span style="font-size: 14px;" id="user-display-name">姓名：莊智</span>
+      <span style="font-size: 14px;">姓名：莊智</span>
     </header>
 
     <!-- 即時心率 (LIVE) -->
@@ -280,7 +280,7 @@
   </div>
 
   <script>
-    // --- 1. Firebase 初始化 (請替換為你的 Firebase 資料庫網址) ---
+    // --- 1. Firebase 初始化 ---
     const firebaseConfig = {
       databaseURL: "https://heart-c720e-default-rtdb.firebaseio.com" 
     };
@@ -334,14 +334,26 @@
         }
       });
 
-      // 如果當前已經處於展開查詢狀態，則即時刷新走勢
       const dataArea = document.getElementById('data-area');
       if (dataArea.classList.contains('show')) {
         toggleAndQuery(); 
       }
     });
 
-    // --- 4. 監聽當前即時狀態 ---
+    // --- 4. 監聽即時狀態 與 前端看門狗機制 ---
+    let lastReceivedTime = Date.now();
+
+    function resetToIdle() {
+      const realtimeBpmEl = document.getElementById('realtime-bpm');
+      const realtimeStatusEl = document.getElementById('realtime-status');
+      const realtimeCard = document.getElementById('realtime-card');
+
+      realtimeCard.style.background = '#718096';
+      realtimeCard.style.boxShadow = 'none';
+      realtimeBpmEl.innerHTML = `-- <span style="font-size: 24px;">BPM</span>`;
+      realtimeStatusEl.innerText = "😴 未偵測到手指（請配戴感測器）";
+    }
+
     database.ref('/currentStatus').on('value', (snapshot) => {
       const status = snapshot.val();
       const realtimeBpmEl = document.getElementById('realtime-bpm');
@@ -349,6 +361,8 @@
       const realtimeCard = document.getElementById('realtime-card');
 
       if (status && status.isWearing === true && status.bpm > 0) {
+        lastReceivedTime = Date.now(); // 重置接收時間
+
         realtimeCard.style.background = '#e53e3e';
         realtimeCard.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
         realtimeBpmEl.innerHTML = `${status.bpm} <span style="font-size: 24px;">BPM</span>`;
@@ -357,13 +371,16 @@
         realtimeBpmEl.style.transform = "scale(1.1)";
         setTimeout(() => { realtimeBpmEl.style.transform = "scale(1)"; }, 100);
       } else {
-        // 未配戴時，瞬間清除數據，不留殘值
-        realtimeCard.style.background = '#718096';
-        realtimeCard.style.boxShadow = 'none';
-        realtimeBpmEl.innerHTML = `-- <span style="font-size: 24px;">BPM</span>`;
-        realtimeStatusEl.innerText = "😴 未偵測到手指（請配戴感測器）";
+        resetToIdle();
       }
     });
+
+    // 【看門狗防護】每 1.5 秒執行一次安全檢驗，如果超過 2.5 秒沒更新，強制歸零！
+    setInterval(() => {
+      if (Date.now() - lastReceivedTime > 2500) {
+        resetToIdle();
+      }
+    }, 1500);
 
     // --- 5. 數據篩選及視圖展開 ---
     function toggleAndQuery() {
@@ -386,7 +403,7 @@
       updateDashboard(filteredData, startDateVal, endDateVal);
     }
 
-    // --- 6. 更新介面元素 ---
+    // --- 6. 更新歷史圖表與明細表 ---
     function updateDashboard(dataList, startDate, endDate) {
       document.getElementById('query-range-text').innerText = `查詢區間：${startDate} ~ ${endDate}`;
       document.getElementById('record-count').innerText = `共 ${dataList.length} 筆紀錄`;
