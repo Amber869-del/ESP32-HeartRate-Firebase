@@ -136,7 +136,7 @@
       background-color: #e2e8f0;
     }
 
-    /* 初始狀態直接設為隱藏，不加 show class 避免複雜度 */
+    /* 初始狀態直接設為隱藏，確保頁面載入時乾淨不穿幫 */
     #data-area {
       display: none;
     }
@@ -231,7 +231,7 @@
       </div>
     </div>
 
-    <!-- 歷史數據展示區 (初始由 JS 控制 style.display="none") -->
+    <!-- 歷史數據展示區 (初始由 JS 控制 display: none) -->
     <div id="data-area">
       
       <!-- 區間平均值 -->
@@ -289,7 +289,7 @@
     document.getElementById('start-date').value = todayStr;
     document.getElementById('end-date').value = todayStr;
 
-    // 用一個全域 JS 變數，100% 精準掌握當下面板是打開還是關閉
+    // 全域變數：精準控制並記憶面板當下的開關狀態
     let isDataAreaOpen = false; 
 
     // --- 2. 初始化 Chart.js ---
@@ -334,7 +334,7 @@
         }
       });
 
-      // 如果當前狀態面板是打開的，自動刷新資料
+      // 如果當前面板為展開狀態，自動在背景同步刷新過濾結果
       if (isDataAreaOpen) {
         refreshQuery(); 
       }
@@ -361,7 +361,7 @@
       const realtimeCard = document.getElementById('realtime-card');
 
       if (status && status.isWearing === true && status.bpm > 0) {
-        lastReceivedTime = Date.now(); // 收到訊號，更新時間戳記
+        lastReceivedTime = Date.now(); // 刷新心跳包時間
 
         realtimeCard.style.background = '#e53e3e';
         realtimeCard.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
@@ -375,25 +375,25 @@
       }
     });
 
-    // 【看門狗】每 1.5 秒確認一次。若超過 2.5 秒沒更新即時資料，強制歸零
+    // 【看門狗防護】每 1.5 秒主動檢查：若超過 2.5 秒未更新，立刻判定為手鬆開並強制歸零
     setInterval(() => {
       if (Date.now() - lastReceivedTime > 2500) {
         resetToIdle();
       }
     }, 1500);
 
-    // --- 5. 點擊按鈕開關與查詢控制 (核心修正：不靠 CSS 切換，改用 JS 變數) ---
+    // --- 5. 點擊按鈕開關與查詢控制 (JS 直接控制與狀態追蹤) ---
     function toggleAndQuery() {
       const dataArea = document.getElementById('data-area');
       const btn = document.getElementById('toggle-btn');
 
       if (isDataAreaOpen) {
-        // 如果目前是開著的，點一下直接隱藏，並更新狀態
+        // 若當前開啟中 -> 隱藏並將狀態設為 false
         dataArea.style.display = "none";
         btn.innerHTML = "🔍 送出查詢並展開歷史數據";
         isDataAreaOpen = false;
       } else {
-        // 如果目前是關閉的，嘗試撈取並更新資料，成功後展開
+        // 若當前隱藏中 -> 進行資料查詢，成功後開啟並將狀態設為 true
         const isSuccess = refreshQuery();
         if (isSuccess) {
           dataArea.style.display = "block";
@@ -403,7 +403,7 @@
       }
     }
 
-    // 歷史數據過濾
+    // 處理歷史區間過濾
     function refreshQuery() {
       const startDateVal = document.getElementById('start-date').value;
       const endDateVal = document.getElementById('end-date').value;
@@ -413,7 +413,7 @@
         return false;
       }
 
-      // 相容各瀏覽器的 Date 轉換機制
+      // 相容各瀏覽器的時間字串轉換
       const startMs = new Date(startDateVal.replace(/-/g, '/') + " 00:00:00").getTime();
       const endMs = new Date(endDateVal.replace(/-/g, '/') + " 23:59:59").getTime();
 
@@ -424,7 +424,7 @@
       return true;
     }
 
-    // --- 6. 更新歷史圖表與明細表 ---
+    // --- 6. 重新繪製歷史圖表與明細表 ---
     function updateDashboard(dataList, startDate, endDate) {
       document.getElementById('query-range-text').innerText = `查詢區間：${startDate} ~ ${endDate}`;
       document.getElementById('record-count').innerText = `共 ${dataList.length} 筆紀錄`;
@@ -470,14 +470,15 @@
       });
     }
 
+    // 重設條件
     function resetFilters() {
       document.getElementById('start-date').value = todayStr;
       document.getElementById('end-date').value = todayStr;
       
       const dataArea = document.getElementById('data-area');
-      dataArea.style.display = "none"; // 強制隱藏
+      dataArea.style.display = "none"; // 隱藏面板
       document.getElementById('toggle-btn').innerHTML = "🔍 送出查詢並展開歷史數據";
-      isDataAreaOpen = false; // 重置開關狀態
+      isDataAreaOpen = false; // 重置狀態
     }
   </script>
 </body>
