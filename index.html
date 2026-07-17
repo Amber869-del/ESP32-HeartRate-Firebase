@@ -121,11 +121,11 @@
 
     /* 摺疊面板：預設隱藏數據 */
     .collapse-content {
-      display: none; /* 預設隱藏 */
+      display: none;
     }
 
     .collapse-content.show {
-      display: block; /* 展開時顯示 */
+      display: block;
     }
 
     /* 統計區 */
@@ -212,10 +212,17 @@
       </div>
     </div>
 
-    <!-- 3. 預設隱藏的數據區（點擊查詢後才展示） -->
+    <!-- 3. 數據展示區（預設隱藏，點擊查詢後展示） -->
     <div id="data-area" class="collapse-content">
       
-      <!-- 數值顯示 -->
+      <!-- ❤️ 【當前即時心率顯示卡片 (LIVE)】 -->
+      <div id="realtime-card" style="background: #718096; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; box-shadow: none; transition: all 0.3s ease;">
+        <div style="font-size: 16px; font-weight: bold; letter-spacing: 1px;">❤️ 當前即時心率 (LIVE)</div>
+        <div id="realtime-bpm" style="font-size: 64px; font-weight: bold; margin: 10px 0; transition: transform 0.1s ease;">-- <span style="font-size: 24px;">BPM</span></div>
+        <div id="realtime-status" style="font-size: 14px; opacity: 0.9;">等待裝置連線中...</div>
+      </div>
+
+      <!-- 區間平均值顯示 -->
       <div class="stats-card">
         <div style="font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">所選區間平均心跳</div>
         <div class="value" id="avg-bpm">0 <span style="font-size: 20px;">/min</span></div>
@@ -259,14 +266,13 @@
 
   <script>
     // ================= 1. Firebase 初始化 =================
-    // 對接與你的 ESP32 相同的 Firebase 即時資料庫
     const firebaseConfig = {
       databaseURL: "https://heart-c720e-default-rtdb.firebaseio.com" 
     };
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    let allRawData = []; // 存放從 Firebase 下載的所有歷史數據
+    let allRawData = []; // 存放下載的所有歷史數據
 
     // 設定預設日期為今天
     const todayStr = new Date().toISOString().split('T')[0];
@@ -299,7 +305,7 @@
       }
     });
 
-    // ================= 3. 即時載入 Firebase 數據備用 =================
+    // ================= 3. 即時載入 Firebase 歷史數據與自動更新 =================
     database.ref('/heartRateHistory').on('value', (snapshot) => {
       const data = snapshot.val();
       allRawData = [];
@@ -307,7 +313,6 @@
 
       Object.keys(data).forEach((key) => {
         const item = data[key];
-        // 讀取帶有 timestamp 結構的數據
         if (typeof item === 'object' && item.timestamp) {
           allRawData.push({
             timestamp: item.timestamp,
@@ -315,14 +320,44 @@
           });
         }
       });
+
+      // 如果網頁已經點擊查詢展開，自動重算並即時繪製新資料
+      const dataArea = document.getElementById('data-area');
+      if (dataArea.classList.contains('show')) {
+        toggleAndQuery(); 
+      }
     });
 
-    // ================= 4. 點擊送出查詢時的動作 (展開並篩選數據) =================
+    // ================= 4. 即時監聽當前心率狀態 (Live Update 通道) =================
+    database.ref('/currentStatus').on('value', (snapshot) => {
+      const status = snapshot.val();
+      const realtimeBpmEl = document.getElementById('realtime-bpm');
+      const realtimeStatusEl = document.getElementById('realtime-status');
+      const realtimeCard = document.getElementById('realtime-card');
+
+      if (status && status.isWearing && status.bpm > 0) {
+        // 感測器配戴中：面板呈現亮紅色，即時閃爍更新數值
+        realtimeCard.style.background = '#e53e3e';
+        realtimeCard.style.boxShadow = '0 4px 15px rgba(229, 62, 62, 0.4)';
+        realtimeBpmEl.innerHTML = `${status.bpm} <span style="font-size: 24px;">BPM</span>`;
+        realtimeStatusEl.innerText = "⚡ 感測器已配戴：正在進行即時監測...";
+        
+        // 類心跳縮放動畫
+        realtimeBpmEl.style.transform = "scale(1.08)";
+        setTimeout(() => { realtimeBpmEl.style.transform = "scale(1)"; }, 120);
+      } else {
+        // 未配戴：面板變灰色
+        realtimeCard.style.background = '#718096';
+        realtimeCard.style.boxShadow = 'none';
+        realtimeBpmEl.innerHTML = `-- <span style="font-size: 24px;">BPM</span>`;
+        realtimeStatusEl.innerText = "😴 感測器未配戴（請將手指放上感測器）";
+      }
+    });
+
+    // ================= 5. 點擊送出查詢與展開數據 =================
     function toggleAndQuery() {
-      // 展開數據區域
       document.getElementById('data-area').classList.add('show');
 
-      // 取得使用者設定的時間軸區間
       const startDateVal = document.getElementById('start-date').value;
       const endDateVal = document.getElementById('end-date').value;
 
@@ -331,20 +366,17 @@
         return;
       }
 
-      // 設定搜尋的精確時間毫秒數 (自開始日 00:00:00 至 結束日 23:59:59)
       const startMs = new Date(startDateVal + "T00:00:00").getTime();
       const endMs = new Date(endDateVal + "T23:59:59").getTime();
 
-      // 篩選出時間軸範圍內的數據
+      // 篩選出符合時間區間內的數據
       const filteredData = allRawData.filter(item => item.timestamp >= startMs && item.timestamp <= endMs);
-
-      // 依時間由舊到新排序
       filteredData.sort((a, b) => a.timestamp - b.timestamp);
 
       updateDashboard(filteredData, startDateVal, endDateVal);
     }
 
-    // ================= 5. 更新圖表與表格數據 =================
+    // ================= 6. 更新歷史圖表、平均值、明細表格 =================
     function updateDashboard(dataList, startDate, endDate) {
       document.getElementById('query-range-text').innerText = `查詢區間：${startDate} ~ ${endDate}`;
       document.getElementById('record-count').innerText = `共 ${dataList.length} 筆紀錄`;
@@ -358,12 +390,12 @@
         return;
       }
 
-      // 1. 計算平均值
+      // 計算區間平均值
       const totalBpm = dataList.reduce((sum, item) => sum + item.bpm, 0);
       const avgBpm = Math.round(totalBpm / dataList.length);
       document.getElementById('avg-bpm').innerHTML = `${avgBpm} <span style="font-size: 20px;">/min</span>`;
 
-      // 2. 更新走勢圖表
+      // 繪製走勢圖
       const labels = dataList.map(item => {
         const d = new Date(item.timestamp);
         return `${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
@@ -374,7 +406,7 @@
       historyChart.data.datasets[0].data = bpms;
       historyChart.update();
 
-      // 3. 更新明細表格（最新時間排最上面）
+      // 產出明細表格（最新紀錄排第一筆）
       const tableBody = document.getElementById('table-body');
       tableBody.innerHTML = '';
       const displayList = [...dataList].reverse();
@@ -393,11 +425,11 @@
       });
     }
 
-    // ================= 6. 清空篩選條件 =================
+    // ================= 7. 清空篩選條件 =================
     function resetFilters() {
       document.getElementById('start-date').value = todayStr;
       document.getElementById('end-date').value = todayStr;
-      document.getElementById('data-area').classList.remove('show'); // 重新隱藏數據
+      document.getElementById('data-area').classList.remove('show'); 
     }
   </script>
 </body>
