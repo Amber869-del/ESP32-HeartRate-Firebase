@@ -230,7 +230,7 @@
       </div>
       <div class="btn-group">
         <button class="btn btn-secondary" onclick="resetFilters()">清空條件</button>
-        <button class="btn" onclick="toggleAndQuery()">🔍 送出查詢並展開歷史數據</button>
+        <button class="btn" id="toggle-btn" onclick="toggleAndQuery()">🔍 送出查詢並展開歷史數據</button>
       </div>
     </div>
 
@@ -336,7 +336,8 @@
 
       const dataArea = document.getElementById('data-area');
       if (dataArea.classList.contains('show')) {
-        toggleAndQuery(); 
+        // 如果歷史區域已經打開，即時重刷數據
+        refreshQuery(); 
       }
     });
 
@@ -361,7 +362,7 @@
       const realtimeCard = document.getElementById('realtime-card');
 
       if (status && status.isWearing === true && status.bpm > 0) {
-        lastReceivedTime = Date.now(); // 重置接收時間
+        lastReceivedTime = Date.now(); // 重置時間
 
         realtimeCard.style.background = '#e53e3e';
         realtimeCard.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
@@ -375,23 +376,39 @@
       }
     });
 
-    // 【看門狗防護】每 1.5 秒執行一次安全檢驗，如果超過 2.5 秒沒更新，強制歸零！
+    // 【看門狗防護】超過 2.5 秒未更新，強制網頁端歸零
     setInterval(() => {
       if (Date.now() - lastReceivedTime > 2500) {
         resetToIdle();
       }
     }, 1500);
 
-    // --- 5. 數據篩選及視圖展開 ---
+    // --- 5. 點擊按鈕開關與查詢控制 ---
     function toggleAndQuery() {
-      document.getElementById('data-area').classList.add('show');
+      const dataArea = document.getElementById('data-area');
+      const btn = document.getElementById('toggle-btn');
 
+      if (dataArea.classList.contains('show')) {
+        // 如果原本是開著，點一下就縮起來（隱藏）
+        dataArea.classList.remove('show');
+        btn.innerHTML = "🔍 送出查詢並展開歷史數據";
+      } else {
+        // 如果原本是關閉，送出查詢並展開
+        if (refreshQuery()) {
+          dataArea.classList.add('show');
+          btn.innerHTML = "❌ 關閉歷史數據面板";
+        }
+      }
+    }
+
+    // 核心資料更新函式
+    function refreshQuery() {
       const startDateVal = document.getElementById('start-date').value;
       const endDateVal = document.getElementById('end-date').value;
 
       if (!startDateVal || !endDateVal) {
         alert("請選擇完整的開始與結束日期！");
-        return;
+        return false;
       }
 
       const startMs = new Date(startDateVal + "T00:00:00").getTime();
@@ -401,6 +418,7 @@
       filteredData.sort((a, b) => a.timestamp - b.timestamp);
 
       updateDashboard(filteredData, startDateVal, endDateVal);
+      return true;
     }
 
     // --- 6. 更新歷史圖表與明細表 ---
@@ -453,6 +471,7 @@
       document.getElementById('start-date').value = todayStr;
       document.getElementById('end-date').value = todayStr;
       document.getElementById('data-area').classList.remove('show'); 
+      document.getElementById('toggle-btn').innerHTML = "🔍 送出查詢並展開歷史數據";
     }
   </script>
 </body>
