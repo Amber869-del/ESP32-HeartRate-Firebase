@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gravity 心率即時監測面板</title>
+    <title>心率即時監測面板</title>
     <!-- 引入 Firebase SDK (使用相容版本 v9) -->
     <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
     
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f0f2f5;
             display: flex;
             justify-content: center;
@@ -20,28 +20,24 @@
         }
         .card {
             background: white;
-            padding: 30px;
+            padding: 40px;
             border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
             text-align: center;
-            width: 350px;
+            width: 320px;
         }
         h2 {
             color: #333;
-            margin-bottom: 20px;
-        }
-        .heart-container {
-            height: 120px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            margin: 0 0 10px 0;
+            font-size: 22px;
         }
         .heart {
-            font-size: 80px;
+            font-size: 70px;
             color: #ff4d4d;
             transition: transform 0.1s;
+            margin: 25px 0;
         }
-        /* 心跳動畫效果 */
+        /* 心跳動畫 */
         .beating {
             animation: beat 0.6s infinite alternate;
         }
@@ -50,28 +46,28 @@
             100% { transform: scale(1.15); }
         }
         .bpm-value {
-            font-size: 64px;
+            font-size: 56px;
             font-weight: bold;
-            color: #222;
-            margin: 10px 0;
+            color: #111;
+            margin-bottom: 15px;
         }
         .unit {
-            font-size: 20px;
-            color: #777;
+            font-size: 18px;
+            color: #666;
+            font-weight: normal;
         }
-        .status-badge {
+        .status {
             display: inline-block;
-            padding: 6px 16px;
-            border-radius: 50px;
+            padding: 6px 14px;
+            border-radius: 20px;
             font-size: 14px;
-            font-weight: 600;
-            margin-top: 15px;
+            font-weight: bold;
         }
-        .status-yes {
+        .yes {
             background-color: #e6f4ea;
             color: #137333;
         }
-        .status-no {
+        .no {
             background-color: #fce8e6;
             color: #c5221f;
         }
@@ -81,61 +77,50 @@
 
 <div class="card">
     <h2>即時心率監測</h2>
-    
-    <div class="heart-container">
-        <div id="heartIcon" class="heart">❤️</div>
-    </div>
-    
+    <div id="heartIcon" class="heart">❤️</div>
     <div class="bpm-value">
         <span id="bpmNumber">--</span> <span class="unit">BPM</span>
     </div>
-    
-    <div id="statusBadge" class="status-badge status-no">未偵測到配戴</div>
+    <div id="statusBadge" class="status no">確認連線中...</div>
 </div>
 
 <script>
-    // --- ⚠️請在此處填入與你 ESP32 相同的 Firebase 設定 ---
+    // --- ⚠️ 請記得修改成你專屬的 Firebase Database 網址 ---
     const firebaseConfig = {
-        databaseURL: "https://YOUR_FIREBASE_URL" // 填入你的 Firebase 即時資料庫網址
+        databaseURL: "https://YOUR_FIREBASE_URL" 
     };
 
     // 初始化 Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    const bpmNumber = document.getElementById('bpmNumber');
-    const heartIcon = document.getElementById('heartIcon');
-    const statusBadge = document.getElementById('statusBadge');
-
-    // 定時監聽 Firebase 的 /currentStatus 路徑
+    // 直接監聽 /currentStatus 節點
     database.ref('/currentStatus').on('value', (snapshot) => {
         const data = snapshot.val();
         
-        if (data) {
-            const bpm = data.bpm || 0;
-            const isWearing = data.isWearing || false;
+        if (data !== null) {
+            const isWearing = data.isWearing;
+            const bpm = data.bpm;
 
-            if (isWearing && bpm > 0) {
-                // 有配戴且有心率
-                bpmNumber.innerText = bpm;
-                statusBadge.innerText = "穩定監測中";
-                statusBadge.className = "status-badge status-yes";
-                heartIcon.classList.add('beating');
+            // 當判定為配戴中且心率大於 0 時顯示數據
+            if (isWearing === true && bpm > 0) {
+                document.getElementById('bpmNumber').innerText = bpm;
+                document.getElementById('statusBadge').innerText = "穩定監測中";
+                document.getElementById('statusBadge').className = "status yes";
+                document.getElementById('heartIcon').classList.add('beating');
             } else {
-                // 未配戴
-                bpmNumber.innerText = "--";
-                statusBadge.innerText = "未偵測到配戴";
-                statusBadge.className = "status-badge status-no";
-                heartIcon.classList.remove('beating');
+                // 未配戴狀態
+                document.getElementById('bpmNumber').innerText = "--";
+                document.getElementById('statusBadge').innerText = "未偵測到配戴";
+                document.getElementById('statusBadge').className = "status no";
+                document.getElementById('heartIcon').classList.remove('beating');
             }
         } else {
-            bpmNumber.innerText = "--";
-            statusBadge.innerText = "無資料連線";
-            statusBadge.className = "status-badge status-no";
-            heartIcon.classList.remove('beating');
+            document.getElementById('statusBadge').innerText = "資料庫無資料";
         }
     }, (error) => {
-        console.error("讀取 Firebase 失敗:", error);
+        document.getElementById('statusBadge').innerText = "連線失敗，請檢查權限";
+        console.error("Firebase 讀取錯誤:", error);
     });
 </script>
 
