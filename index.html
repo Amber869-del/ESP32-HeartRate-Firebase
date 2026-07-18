@@ -3,124 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>心率即時監測面板</title>
-    <!-- 引入 Firebase SDK (使用相容版本 v9) -->
+    <title>心率監測與歷史系統</title>
     <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
     
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .card {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-            text-align: center;
-            width: 320px;
-        }
-        h2 {
-            color: #333;
-            margin: 0 0 10px 0;
-            font-size: 22px;
-        }
-        .heart {
-            font-size: 70px;
-            color: #ff4d4d;
-            transition: transform 0.1s;
-            margin: 25px 0;
-        }
-        /* 心跳動畫 */
-        .beating {
-            animation: beat 0.6s infinite alternate;
-        }
-        @keyframes beat {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.15); }
-        }
-        .bpm-value {
-            font-size: 56px;
-            font-weight: bold;
-            color: #111;
-            margin-bottom: 15px;
-        }
-        .unit {
-            font-size: 18px;
-            color: #666;
-            font-weight: normal;
-        }
-        .status {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: bold;
-        }
-        .yes {
-            background-color: #e6f4ea;
-            color: #137333;
-        }
-        .no {
-            background-color: #fce8e6;
-            color: #c5221f;
-        }
+        body { font-family: -apple-system, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .nav-tabs { display: flex; margin-bottom: 20px; background: #e0e4ec; padding: 5px; border-radius: 10px; }
+        .tab-btn { padding: 10px 25px; border: none; background: transparent; cursor: pointer; font-size: 16px; font-weight: bold; color: #555; border-radius: 8px; transition: 0.2s; }
+        .tab-btn.active { background: white; color: #ff4d4d; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .page { display: none; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 340px; text-align: center; }
+        .page.active { display: block; }
+        .heart { font-size: 70px; color: #ff4d4d; transition: transform 0.1s; margin: 20px 0; }
+        .beating { animation: beat 0.6s infinite alternate; }
+        @keyframes beat { 0% { transform: scale(1); } 100% { transform: scale(1.15); } }
+        .bpm-value { font-size: 56px; font-weight: bold; margin-bottom: 15px; }
+        .unit { font-size: 18px; color: #666; font-weight: normal; }
+        .status { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+        .yes { background-color: #e6f4ea; color: #137333; }
+        .no { background-color: #fce8e6; color: #c5221f; }
+        /* 歷史紀錄排版 */
+        .history-list { max-height: 300px; overflow-y: auto; text-align: left; margin-top: 15px; padding: 0; list-style: none; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .history-time { color: #888; }
+        .history-bpm { font-weight: bold; color: #ff4d4d; }
     </style>
 </head>
 <body>
 
-<div class="card">
+<!-- 分頁切換選單 -->
+<div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchPage('realtime-page', this)">即時狀態</button>
+    <button class="tab-btn" onclick="switchPage('history-page', this)">歷史紀錄</button>
+</div>
+
+<!-- 即時監測頁面 -->
+<div id="realtime-page" class="page active">
     <h2>即時心率監測</h2>
     <div id="heartIcon" class="heart">❤️</div>
-    <div class="bpm-value">
-        <span id="bpmNumber">--</span> <span class="unit">BPM</span>
-    </div>
-    <div id="statusBadge" class="status no">確認連線中...</div>
+    <div class="bpm-value"><span id="bpmNumber">--</span> <span class="unit">BPM</span></div>
+    <div id="statusBadge" class="status no">載入中...</div>
+</div>
+
+<!-- 歷史紀錄頁面 -->
+<div id="history-page" class="page">
+    <h2>心率歷史紀錄</h2>
+    <ul id="historyList" class="history-list">
+        <li style="text-align: center; color: #999; padding: 20px;">尚無歷史紀錄...</li>
+    </ul>
 </div>
 
 <script>
-    // --- ⚠️ 請記得修改成你專屬的 Firebase Database 網址 ---
+    // --- ⚠️請記得修改成你專屬的 Firebase Database 網址 ---
     const firebaseConfig = {
         databaseURL: "https://YOUR_FIREBASE_URL" 
     };
 
-    // 初始化 Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    // 直接監聽 /currentStatus 節點
+    // 1. 分頁切換功能
+    function switchPage(pageId, btn) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    // 2. 即時監聽數據 (/currentStatus)
     database.ref('/currentStatus').on('value', (snapshot) => {
         const data = snapshot.val();
-        
         if (data !== null) {
-            const isWearing = data.isWearing;
-            const bpm = data.bpm;
-
-            // 當判定為配戴中且心率大於 0 時顯示數據
-            if (isWearing === true && bpm > 0) {
-                document.getElementById('bpmNumber').innerText = bpm;
+            if (data.isWearing === true && data.bpm > 0) {
+                document.getElementById('bpmNumber').innerText = data.bpm;
                 document.getElementById('statusBadge').innerText = "穩定監測中";
                 document.getElementById('statusBadge').className = "status yes";
                 document.getElementById('heartIcon').classList.add('beating');
             } else {
-                // 未配戴狀態
                 document.getElementById('bpmNumber').innerText = "--";
                 document.getElementById('statusBadge').innerText = "未偵測到配戴";
                 document.getElementById('statusBadge').className = "status no";
                 document.getElementById('heartIcon').classList.remove('beating');
             }
-        } else {
-            document.getElementById('statusBadge').innerText = "資料庫無資料";
         }
-    }, (error) => {
-        document.getElementById('statusBadge').innerText = "連線失敗，請檢查權限";
-        console.error("Firebase 讀取錯誤:", error);
+    });
+
+    // 3. 歷史紀錄監聽 (/heartRateHistory)
+    database.ref('/heartRateHistory').limitToLast(50).on('value', (snapshot) => {
+        const listElement = document.getElementById('historyList');
+        listElement.innerHTML = ''; // 清空舊內容
+        
+        const data = snapshot.val();
+        if (data) {
+            // 將物件轉為陣列並由新到舊反轉排序
+            const keys = Object.keys(data).reverse();
+            keys.forEach(key => {
+                const item = data[key];
+                const date = new Date(item.timestamp);
+                const timeString = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}:${date.getSeconds().toString().padStart(2,'0')}`;
+                
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                li.innerHTML = `<span class="history-time">${timeString}</span><span class="history-bpm">${item.bpm} BPM</span>`;
+                listElement.appendChild(li);
+            });
+        } else {
+            listElement.innerHTML = '<li style="text-align: center; color: #999; padding: 20px;">尚無歷史紀錄</li>';
+        }
     });
 </script>
 
