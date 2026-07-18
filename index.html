@@ -1,485 +1,143 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>心率即時監測與歷史數據系統</title>
-  <!-- 載入 Firebase 8.x SDK -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <!-- 載入 Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-  <style>
-    :root {
-      --bg-color: #f4f6f9;
-      --card-bg: #ffffff;
-      --text-color: #2d3748;
-      --primary-color: #3182ce;
-      --danger-color: #e53e3e;
-      --border-color: #e2e8f0;
-      --dark-gray: #4a5568;
-    }
-
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    header {
-      background-color: var(--dark-gray);
-      color: white;
-      padding: 15px 20px;
-      border-radius: 10px 10px 0 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 20px;
-    }
-
-    .realtime-section {
-      margin-bottom: 20px;
-    }
-
-    #realtime-card {
-      background: #718096;
-      color: white;
-      padding: 25px 20px;
-      border-radius: 0 0 10px 10px;
-      text-align: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      transition: all 0.3s ease;
-    }
-
-    #realtime-bpm {
-      font-size: 72px;
-      font-weight: bold;
-      margin: 10px 0;
-      transition: transform 0.1s ease;
-    }
-
-    .filter-section {
-      background: var(--card-bg);
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      border: 1px solid var(--border-color);
-      margin-bottom: 20px;
-    }
-
-    .filter-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-bottom: 15px;
-    }
-
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .filter-group label {
-      font-size: 14px;
-      font-weight: bold;
-      margin-bottom: 5px;
-      color: var(--dark-gray);
-    }
-
-    .filter-group input {
-      padding: 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 5px;
-      font-size: 14px;
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-    }
-
-    .btn {
-      background-color: #2b6cb0;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-
-    .btn:hover {
-      background-color: #1a365d;
-    }
-
-    .btn-secondary {
-      background-color: #edf2f7;
-      color: #2d3748;
-      border: 1px solid var(--border-color);
-    }
-
-    .btn-secondary:hover {
-      background-color: #e2e8f0;
-    }
-
-    /* 初始狀態直接設為隱藏，確保頁面載入時乾淨不穿幫 */
-    #data-area {
-      display: none;
-    }
-
-    .stats-card {
-      background: #319795;
-      color: white;
-      padding: 15px;
-      border-radius: 8px;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .stats-card .value {
-      font-size: 48px;
-      font-weight: bold;
-    }
-
-    .dashboard-section {
-      background: var(--card-bg);
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      border: 1px solid var(--border-color);
-      margin-bottom: 20px;
-    }
-
-    .chart-container {
-      position: relative;
-      height: 300px;
-      width: 100%;
-    }
-
-    .table-responsive {
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid var(--border-color);
-      border-radius: 5px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    th, td {
-      padding: 12px 15px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    th {
-      background-color: #edf2f7;
-      position: sticky;
-      top: 0;
-      color: #4a5568;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity 心率即時監測面板</title>
+    <!-- 引入 Firebase SDK (使用相容版本 v9) -->
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 350px;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .heart-container {
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .heart {
+            font-size: 80px;
+            color: #ff4d4d;
+            transition: transform 0.1s;
+        }
+        /* 心跳動畫效果 */
+        .beating {
+            animation: beat 0.6s infinite alternate;
+        }
+        @keyframes beat {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.15); }
+        }
+        .bpm-value {
+            font-size: 64px;
+            font-weight: bold;
+            color: #222;
+            margin: 10px 0;
+        }
+        .unit {
+            font-size: 20px;
+            color: #777;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+        .status-yes {
+            background-color: #e6f4ea;
+            color: #137333;
+        }
+        .status-no {
+            background-color: #fce8e6;
+            color: #c5221f;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="container">
-    <header>
-      <h1>即時監測 & 歷史查詢</h1>
-      <span style="font-size: 14px;">姓名：莊智</span>
-    </header>
-
-    <!-- 即時心率 (LIVE) -->
-    <div class="realtime-section">
-      <div id="realtime-card">
-        <div style="font-size: 16px; font-weight: bold; letter-spacing: 1px;">❤️ 當前即時心率 (LIVE)</div>
-        <div id="realtime-bpm">-- <span style="font-size: 24px;">BPM</span></div>
-        <div id="realtime-status" style="font-size: 14px; opacity: 0.9;">初始化中...</div>
-      </div>
+<div class="card">
+    <h2>即時心率監測</h2>
+    
+    <div class="heart-container">
+        <div id="heartIcon" class="heart">❤️</div>
     </div>
-
-    <!-- 時間軸篩選控制區 -->
-    <div class="filter-section">
-      <div class="filter-grid">
-        <div class="filter-group">
-          <label>開始日期</label>
-          <input type="date" id="start-date">
-        </div>
-        <div class="filter-group">
-          <label>結束日期</label>
-          <input type="date" id="end-date">
-        </div>
-      </div>
-      <div class="btn-group">
-        <button class="btn btn-secondary" onclick="resetFilters()">清空條件</button>
-        <button class="btn" id="toggle-btn" onclick="toggleAndQuery()">🔍 送出查詢並展開歷史數據</button>
-      </div>
+    
+    <div class="bpm-value">
+        <span id="bpmNumber">--</span> <span class="unit">BPM</span>
     </div>
+    
+    <div id="statusBadge" class="status-badge status-no">未偵測到配戴</div>
+</div>
 
-    <!-- 歷史數據展示區 (初始由 JS 控制 display: none) -->
-    <div id="data-area">
-      
-      <!-- 區間平均值 -->
-      <div class="stats-card">
-        <div style="font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">所選區間平均心跳</div>
-        <div class="value" id="avg-bpm">0 <span style="font-size: 20px;">/min</span></div>
-        <div id="query-range-text" style="font-size: 12px; margin-top: 5px; opacity: 0.8;"></div>
-      </div>
-
-      <!-- 圖表 -->
-      <div class="dashboard-section">
-        <h3 style="margin-top: 0;">心率活動度走勢圖</h3>
-        <div class="chart-container">
-          <canvas id="historyChart"></canvas>
-        </div>
-      </div>
-
-      <!-- 表格 -->
-      <div class="dashboard-section">
-        <h3 style="margin-top: 0; display: flex; justify-content: space-between;">
-          <span>量測歷史明細</span>
-          <span id="record-count" style="font-size: 14px; color: #718096; font-weight: normal;">共 0 筆紀錄</span>
-        </h3>
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>序號</th>
-                <th>量測日期與時間</th>
-                <th>心率 (BPM)</th>
-              </tr>
-            </thead>
-            <tbody id="table-body">
-              <tr>
-                <td colspan="3" style="text-align: center; color: #a0aec0;">無符合篩選條件的數據</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <script>
-    // --- 1. Firebase 初始化 ---
+<script>
+    // --- ⚠️請在此處填入與你 ESP32 相同的 Firebase 設定 ---
     const firebaseConfig = {
-      databaseURL: "https://heart-c720e-default-rtdb.firebaseio.com" 
+        databaseURL: "https://YOUR_FIREBASE_URL" // 填入你的 Firebase 即時資料庫網址
     };
+
+    // 初始化 Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    let allRawData = []; 
-    const todayStr = new Date().toISOString().split('T')[0];
-    document.getElementById('start-date').value = todayStr;
-    document.getElementById('end-date').value = todayStr;
+    const bpmNumber = document.getElementById('bpmNumber');
+    const heartIcon = document.getElementById('heartIcon');
+    const statusBadge = document.getElementById('statusBadge');
 
-    // 全域變數：精準控制並記憶面板當下的開關狀態
-    let isDataAreaOpen = false; 
-
-    // --- 2. 初始化 Chart.js ---
-    const ctx = document.getElementById('historyChart').getContext('2d');
-    const historyChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: '心拍數 (BPM)',
-          data: [],
-          borderColor: '#319795',
-          backgroundColor: 'rgba(49, 151, 149, 0.1)',
-          borderWidth: 2,
-          pointRadius: 4,
-          tension: 0.1,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: { min: 40, max: 180 }
-        }
-      }
-    });
-
-    // --- 3. 監聽歷史數據資料 ---
-    database.ref('/heartRateHistory').on('value', (snapshot) => {
-      const data = snapshot.val();
-      allRawData = [];
-      if (!data) return;
-
-      Object.keys(data).forEach((key) => {
-        const item = data[key];
-        if (typeof item === 'object' && item.timestamp) {
-          allRawData.push({
-            timestamp: item.timestamp,
-            bpm: item.bpm
-          });
-        }
-      });
-
-      // 如果當前面板為展開狀態，自動在背景同步刷新過濾結果
-      if (isDataAreaOpen) {
-        refreshQuery(); 
-      }
-    });
-
-    // --- 4. 監聽即時狀態 與 前端看門狗機制 ---
-    let lastReceivedTime = Date.now();
-
-    function resetToIdle() {
-      const realtimeBpmEl = document.getElementById('realtime-bpm');
-      const realtimeStatusEl = document.getElementById('realtime-status');
-      const realtimeCard = document.getElementById('realtime-card');
-
-      realtimeCard.style.background = '#718096';
-      realtimeCard.style.boxShadow = 'none';
-      realtimeBpmEl.innerHTML = `-- <span style="font-size: 24px;">BPM</span>`;
-      realtimeStatusEl.innerText = "😴 未偵測到手指（請配戴感測器）";
-    }
-
+    // 定時監聽 Firebase 的 /currentStatus 路徑
     database.ref('/currentStatus').on('value', (snapshot) => {
-      const status = snapshot.val();
-      const realtimeBpmEl = document.getElementById('realtime-bpm');
-      const realtimeStatusEl = document.getElementById('realtime-status');
-      const realtimeCard = document.getElementById('realtime-card');
-
-      if (status && status.isWearing === true && status.bpm > 0) {
-        lastReceivedTime = Date.now(); // 刷新心跳包時間
-
-        realtimeCard.style.background = '#e53e3e';
-        realtimeCard.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
-        realtimeBpmEl.innerHTML = `${status.bpm} <span style="font-size: 24px;">BPM</span>`;
-        realtimeStatusEl.innerText = "⚡ 正在進行即時量測...";
+        const data = snapshot.val();
         
-        realtimeBpmEl.style.transform = "scale(1.1)";
-        setTimeout(() => { realtimeBpmEl.style.transform = "scale(1)"; }, 100);
-      } else {
-        resetToIdle();
-      }
-    });
+        if (data) {
+            const bpm = data.bpm || 0;
+            const isWearing = data.isWearing || false;
 
-    // 【看門狗防護】每 1.5 秒主動檢查：若超過 2.5 秒未更新，立刻判定為手鬆開並強制歸零
-    setInterval(() => {
-      if (Date.now() - lastReceivedTime > 2500) {
-        resetToIdle();
-      }
-    }, 1500);
-
-    // --- 5. 點擊按鈕開關與查詢控制 (JS 直接控制與狀態追蹤) ---
-    function toggleAndQuery() {
-      const dataArea = document.getElementById('data-area');
-      const btn = document.getElementById('toggle-btn');
-
-      if (isDataAreaOpen) {
-        // 若當前開啟中 -> 隱藏並將狀態設為 false
-        dataArea.style.display = "none";
-        btn.innerHTML = "🔍 送出查詢並展開歷史數據";
-        isDataAreaOpen = false;
-      } else {
-        // 若當前隱藏中 -> 進行資料查詢，成功後開啟並將狀態設為 true
-        const isSuccess = refreshQuery();
-        if (isSuccess) {
-          dataArea.style.display = "block";
-          btn.innerHTML = "❌ 關閉歷史數據面板";
-          isDataAreaOpen = true;
+            if (isWearing && bpm > 0) {
+                // 有配戴且有心率
+                bpmNumber.innerText = bpm;
+                statusBadge.innerText = "穩定監測中";
+                statusBadge.className = "status-badge status-yes";
+                heartIcon.classList.add('beating');
+            } else {
+                // 未配戴
+                bpmNumber.innerText = "--";
+                statusBadge.innerText = "未偵測到配戴";
+                statusBadge.className = "status-badge status-no";
+                heartIcon.classList.remove('beating');
+            }
+        } else {
+            bpmNumber.innerText = "--";
+            statusBadge.innerText = "無資料連線";
+            statusBadge.className = "status-badge status-no";
+            heartIcon.classList.remove('beating');
         }
-      }
-    }
+    }, (error) => {
+        console.error("讀取 Firebase 失敗:", error);
+    });
+</script>
 
-    // 處理歷史區間過濾
-    function refreshQuery() {
-      const startDateVal = document.getElementById('start-date').value;
-      const endDateVal = document.getElementById('end-date').value;
-
-      if (!startDateVal || !endDateVal) {
-        alert("請選擇完整的開始與結束日期！");
-        return false;
-      }
-
-      // 相容各瀏覽器的時間字串轉換
-      const startMs = new Date(startDateVal.replace(/-/g, '/') + " 00:00:00").getTime();
-      const endMs = new Date(endDateVal.replace(/-/g, '/') + " 23:59:59").getTime();
-
-      const filteredData = allRawData.filter(item => item.timestamp >= startMs && item.timestamp <= endMs);
-      filteredData.sort((a, b) => a.timestamp - b.timestamp);
-
-      updateDashboard(filteredData, startDateVal, endDateVal);
-      return true;
-    }
-
-    // --- 6. 重新繪製歷史圖表與明細表 ---
-    function updateDashboard(dataList, startDate, endDate) {
-      document.getElementById('query-range-text').innerText = `查詢區間：${startDate} ~ ${endDate}`;
-      document.getElementById('record-count').innerText = `共 ${dataList.length} 筆紀錄`;
-
-      if (dataList.length === 0) {
-        document.getElementById('avg-bpm').innerHTML = `0 <span style="font-size: 20px;">/min</span>`;
-        document.getElementById('table-body').innerHTML = `<tr><td colspan="3" style="text-align: center; color: #a0aec0;">此區間無任何量測紀錄</td></tr>`;
-        historyChart.data.labels = [];
-        historyChart.data.datasets[0].data = [];
-        historyChart.update();
-        return;
-      }
-
-      const totalBpm = dataList.reduce((sum, item) => sum + item.bpm, 0);
-      const avgBpm = Math.round(totalBpm / dataList.length);
-      document.getElementById('avg-bpm').innerHTML = `${avgBpm} <span style="font-size: 20px;">/min</span>`;
-
-      const labels = dataList.map(item => {
-        const d = new Date(item.timestamp);
-        return `${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
-      });
-      const bpms = dataList.map(item => item.bpm);
-
-      historyChart.data.labels = labels;
-      historyChart.data.datasets[0].data = bpms;
-      historyChart.update();
-
-      const tableBody = document.getElementById('table-body');
-      tableBody.innerHTML = '';
-      const displayList = [...dataList].reverse();
-
-      displayList.forEach((item, index) => {
-        const d = new Date(item.timestamp);
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${d.toLocaleTimeString()}`;
-        
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>#${displayList.length - index}</td>
-          <td>${dateStr}</td>
-          <td style="font-weight: bold; color: #319795;">${item.bpm} BPM</td>
-        `;
-        tableBody.appendChild(tr);
-      });
-    }
-
-    // 重設條件
-    function resetFilters() {
-      document.getElementById('start-date').value = todayStr;
-      document.getElementById('end-date').value = todayStr;
-      
-      const dataArea = document.getElementById('data-area');
-      dataArea.style.display = "none"; // 隱藏面板
-      document.getElementById('toggle-btn').innerHTML = "🔍 送出查詢並展開歷史數據";
-      isDataAreaOpen = false; // 重置狀態
-    }
-  </script>
 </body>
 </html>
