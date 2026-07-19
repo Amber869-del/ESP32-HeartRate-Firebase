@@ -18,7 +18,7 @@
         .container { width: 100%; max-width: 900px; }
         
         /* 即時看板樣式 */
-        .live-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px; position: relative; }
+        .live-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px; }
         .live-heart { font-size: 40px; color: #ff4d4d; display: inline-block; }
         .beating { animation: beat 0.6s infinite alternate; }
         @keyframes beat { 0% { transform: scale(1); } 100% { transform: scale(1.15); } }
@@ -38,7 +38,7 @@
         .btn-group { display: flex; justify-content: flex-end; gap: 10px; }
         .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; }
         .btn-clear { background: #e9ecef; color: #495057; }
-        .btn-submit { background: #1a56db; color: white; display: flex; align-items: center; gap: 5px; }
+        .btn-submit { background: #1a56db; color: white; }
         
         /* 平均心跳橫條 */
         .avg-bar { background-color: var(--primary-color); color: white; text-align: center; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
@@ -51,10 +51,11 @@
         h3 { margin-top: 0; color: #333; font-size: 18px; }
 
         /* 可折疊歷史明細樣式 */
-        .collapse-header { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: bold; font-size: 18px; color: #333; transition: background 0.2s; }
+        .collapse-header { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: bold; font-size: 18px; color: #333; }
         .collapse-header:hover { background: #f8f9fa; }
-        .collapse-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: white; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-top: -10px; }
-        .collapse-content.show { max-height: 400px; overflow-y: auto; padding: 20px; margin-top: 5px; }
+        
+        /* 改用簡單直覺的隱藏/顯示容器，防堵瀏覽器高度計算錯誤 */
+        .collapse-content { display: none; background: white; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 20px; margin-top: 5px; max-height: 400px; overflow-y: auto; }
         
         /* 表格樣式 */
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
@@ -110,7 +111,7 @@
     <!-- 5. 可收折的量測歷史明細 -->
     <div class="collapse-header" onclick="toggleCollapse()">
         <span>量測歷史明細</span>
-        <span class="count-text">共 <span id="recordCount">0</span> 筆紀錄 ▾</span>
+        <span class="count-text" id="toggleIndicator">點擊展開 共 0 筆 ▾</span>
     </div>
     <div id="collapseContent" class="collapse-content">
         <table>
@@ -176,7 +177,6 @@
                 });
             });
         }
-        // 自動執行初次篩選顯示
         filterData();
     });
 
@@ -185,38 +185,28 @@
         const startVal = document.getElementById('startDate').value;
         const endVal = document.getElementById('endDate').value;
 
-        if (!startVal || !endVal) {
-            alert("請選擇開始與結束日期");
-            return;
-        }
+        if (!startVal || !endVal) return;
 
-        // 設定時間範圍 (當天 00:00:00 至 當天 23:59:59)
         const startTime = new Date(startVal + 'T00:00:00').getTime();
         const endTime = new Date(endVal + 'T23:59:59').getTime();
 
-        // 篩選出符合日期的資料
         const filtered = allHistoryData.filter(item => item.timestamp >= startTime && item.timestamp <= endTime);
-        
-        // 排序（由舊到新畫圖）
         filtered.sort((a, b) => a.timestamp - b.timestamp);
 
-        // 1. 更新區間文字提示
         document.getElementById('avgRangeText').innerText = `查詢區間：${startVal} ~ ${endVal}`;
-        document.getElementById('recordCount').innerText = filtered.length;
 
         if (filtered.length === 0) {
             document.getElementById('avgBpmText').innerText = "--";
+            document.getElementById('toggleIndicator').innerText = "點擊展開 共 0 筆 ▾";
             document.getElementById('historyTableBody').innerHTML = `<tr><td colspan="2" style="text-align:center; color:#999;">該區間查無量測紀錄</td></tr>`;
             updateChart([], []);
             return;
         }
 
-        // 2. 計算平均心跳
         const totalBpm = filtered.reduce((sum, item) => sum + item.bpm, 0);
         const avgBpm = Math.round(totalBpm / filtered.length);
         document.getElementById('avgBpmText').innerText = avgBpm;
 
-        // 3. 生成表格內容 (由新到舊排序顯示)
         const tableData = [...filtered].reverse();
         let tableHtml = '';
         tableData.forEach(item => {
@@ -226,7 +216,6 @@
         });
         document.getElementById('historyTableBody').innerHTML = tableHtml;
 
-        // 4. 更新折線圖
         const labels = filtered.map(item => {
             const d = new Date(item.timestamp);
             return `${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12:true})}`;
@@ -234,18 +223,16 @@
         const bpmData = filtered.map(item => item.bpm);
         updateChart(labels, bpmData);
 
-        // 自動展開歷史面板
+        // 送出查詢時，直接強制打開明細面版
         const content = document.getElementById('collapseContent');
-        content.classList.add('show');
+        content.style.display = "block";
+        document.getElementById('toggleIndicator').innerText = `點擊收起 共 ${filtered.length} 筆 ▴`;
     }
 
     // --- 四、圖表繪製 (Chart.js) ---
     function updateChart(labels, data) {
         const ctx = document.getElementById('heartChart').getContext('2d');
-        
-        if (heartChart) {
-            heartChart.destroy(); // 銷毀舊圖表以利重繪
-        }
+        if (heartChart) heartChart.destroy();
 
         heartChart = new Chart(ctx, {
             type: 'line',
@@ -269,16 +256,24 @@
                 scales: {
                     y: { min: 40, max: 180, ticks: { stepSize: 20 } },
                     x: { ticks: { maxRotation: 15, autoSkip: true, maxTicksLimit: 10 } }
-                },
-                plugins: { legend: { position: 'top' } }
+                }
             }
         });
     }
 
-    // --- 五、介面互動（收折與清空） ---
+    // --- 五、手動展開與收折開關 (100% 點擊有效) ---
     function toggleCollapse() {
         const content = document.getElementById('collapseContent');
-        content.classList.toggle('show');
+        const indicator = document.getElementById('toggleIndicator');
+        const count = document.getElementById('recordCount') ? document.getElementById('recordCount').innerText : allHistoryData.length;
+        
+        if (content.style.display === "block") {
+            content.style.display = "none";
+            indicator.innerText = "點擊展開 ▾";
+        } else {
+            content.style.display = "block";
+            indicator.innerText = "點擊收起 ▴";
+        }
     }
 
     function clearFilter() {
