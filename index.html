@@ -25,7 +25,7 @@
         }
         .container { width: 100%; max-width: 900px; }
         
-        /* 即時看板 */
+        /* 即時看板 (保持原樣) */
         .live-card { 
             background: white; 
             padding: 20px; 
@@ -56,6 +56,36 @@
         .yes { background-color: #e6f4ea; color: #137333; }
         .no { background-color: #fce8e6; color: #c5221f; }
 
+        /* 平均心跳可點擊標題 */
+        .avg-header {
+            background-color: var(--primary-color); 
+            color: white; 
+            padding: 16px 20px; 
+            border-radius: 12px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .avg-header:hover { opacity: 0.95; }
+        
+        /* 平均心跳展開內容 */
+        .avg-content {
+            display: none;
+            background-color: var(--primary-color); 
+            color: white; 
+            text-align: center; 
+            padding: 20px; 
+            border-radius: 0 0 12px 12px; 
+            margin-top: -8px;
+            margin-bottom: 20px;
+        }
+        .avg-value { font-size: 44px; font-weight: bold; }
+        .avg-range { font-size: 12px; opacity: 0.8; margin-top: 5px; }
+
         /* 卡片與表單 */
         .card { 
             background: white; 
@@ -70,56 +100,19 @@
         input[type="date"] { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
         
         /* 按鈕 */
-        .btn-group { display: flex; justify-content: flex-end; gap: 10px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; }
+        .btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-clear { background: #e9ecef; color: #495057; }
-        .btn-submit { background: #1a56db; color: white; }
         
-        /* 平均心跳橫條 */
-        .avg-bar { 
-            background-color: var(--primary-color); 
-            color: white; 
-            text-align: center; 
-            padding: 20px; 
-            border-radius: 12px; 
-            margin-bottom: 20px; 
-        }
-        .avg-title { font-size: 16px; letter-spacing: 1px; margin-bottom: 5px; }
-        .avg-value { font-size: 44px; font-weight: bold; }
-        .avg-range { font-size: 12px; opacity: 0.8; margin-top: 5px; }
-
         /* 圖表區塊 */
         .chart-container { position: relative; height: 300px; width: 100%; }
         h3 { margin-top: 0; color: #333; font-size: 18px; }
 
-        /* 可展開/收折的歷史紀錄主區塊 */
-        .collapse-header { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 18px; 
-            color: #333; 
-        }
-        .collapse-header:hover { background: #f8f9fa; }
-        .collapse-content { 
-            display: none; 
-            background: white; 
-            border-radius: 0 0 12px 12px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-            padding: 20px; 
-            margin-top: 5px; 
-        }
-        
+        /* 表格容器 */
         .table-wrapper {
             max-height: 400px; 
             overflow-y: auto; 
-            margin-top: 15px;
+            margin-top: 10px;
             border-top: 1px solid #eee;
         }
 
@@ -132,18 +125,23 @@
 
 <div class="container">
     
-    <!-- 1. 即時看板 -->
+    <!-- 1. 即時看板 (完全未修改) -->
     <div class="live-card">
         <div id="liveHeart" class="live-heart">❤️</div>
         <div class="live-bpm"><span id="liveBpm">--</span> <span style="font-size:16px;color:#666;">BPM (即時)</span></div>
         <div id="liveStatus" class="status-badge no">未配戴</div>
     </div>
 
-    <!-- 2. 所選區間平均心跳 -->
-    <div class="avg-bar">
-        <div class="avg-title">所選區間平均心跳</div>
-        <div class="avg-value"><span id="avgBpmText">--</span> <span style="font-size:18px;">/min</span></div>
-        <div class="avg-range" id="avgRangeText">查詢區間：全部 ~ 全部</div>
+    <!-- 2. 所選區間平均心跳 (按一下開啟 / 按一下收起) -->
+    <div style="margin-bottom: 20px;">
+        <div class="avg-header" onclick="toggleAvgSection()">
+            <span>所選區間平均心跳</span>
+            <span id="avgIndicator" style="font-size:14px; font-weight:normal;">點擊展開 ▾</span>
+        </div>
+        <div id="avgContent" class="avg-content">
+            <div class="avg-value"><span id="avgBpmText">--</span> <span style="font-size:18px;">/min</span></div>
+            <div class="avg-range" id="avgRangeText">查詢區間：全部 ~ 全部</div>
+        </div>
     </div>
 
     <!-- 3. 心率活動度走勢圖 -->
@@ -154,21 +152,18 @@
         </div>
     </div>
 
-    <!-- 4. 可點擊展開/收折的量測歷史明細 (含日期篩選器) -->
-    <div class="collapse-header" onclick="toggleCollapse()">
-        <span>量測歷史明細</span>
-        <span id="toggleIndicator" style="font-size:14px; color:#666; font-weight:normal;">點擊展開 ▾</span>
-    </div>
-    
-    <div id="collapseContent" class="collapse-content">
-        <!-- 日期篩選區塊 (圈1移至圈2上方) -->
+    <!-- 4. 量測歷史明細 (直接顯示，含日期輸入欄) -->
+    <div class="card">
+        <h3>量測歷史明細</h3>
+        
+        <!-- 日期選擇區 -->
         <div class="row">
             <div class="col">
-                <label>開始日期</label>
+                <label>開始時間</label>
                 <input type="date" id="startDate" onchange="filterData()">
             </div>
             <div class="col">
-                <label>結束日期</label>
+                <label>結束時間</label>
                 <input type="date" id="endDate" onchange="filterData()">
             </div>
         </div>
@@ -176,7 +171,7 @@
             <button class="btn btn-clear" onclick="clearFilter()">清空條件 (顯示全部)</button>
         </div>
 
-        <!-- 歷史紀錄表格 -->
+        <!-- 明細列表 -->
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -193,6 +188,7 @@
             </table>
         </div>
     </div>
+
 </div>
 
 <script>
@@ -209,7 +205,7 @@
     let allHistoryData = []; 
     let heartChart = null;
 
-    // 1. 監聽即時數據 (/currentStatus)
+    // 1. 監聽即時數據 (/currentStatus) - 保持原樣
     database.ref('currentStatus').on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -256,7 +252,7 @@
         console.error("歷史數據讀取錯誤：", err);
     });
 
-    // 3. 數據篩選與圖表更新
+    // 3. 數據篩選與更新
     function filterData() {
         const startVal = document.getElementById('startDate').value;
         const endVal = document.getElementById('endDate').value;
@@ -279,34 +275,33 @@
 
         if (filtered.length === 0) {
             document.getElementById('avgBpmText').innerText = "--";
-            document.getElementById('toggleIndicator').innerText = `點擊展開 共 0 筆 ▾ (總數 ${allHistoryData.length})`;
             document.getElementById('historyTableBody').innerHTML = `<tr><td colspan="2" style="text-align:center; color:#999;">該區間查無量測紀錄</td></tr>`;
             updateChart([], []);
             return;
         }
 
+        // 計算平均心跳
         const totalBpm = filtered.reduce((sum, item) => sum + item.bpm, 0);
         const avgBpm = Math.round(totalBpm / filtered.length);
         document.getElementById('avgBpmText').innerText = avgBpm;
 
+        // 渲染歷史明細表格
         const tableData = [...filtered].reverse();
         let tableHtml = '';
         tableData.forEach(item => {
             const d = new Date(item.timestamp);
-            const timeStr = `${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString('zh-TW', {hour12: true})}`;
+            const timeStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString('zh-TW', {hour12: true})}`;
             tableHtml += `<tr><td>${timeStr}</td><td style="font-weight:bold; color:var(--primary-color);">${item.bpm}</td></tr>`;
         });
         document.getElementById('historyTableBody').innerHTML = tableHtml;
 
+        // 更新走勢圖
         const labels = filtered.map(item => {
             const d = new Date(item.timestamp);
             return `${d.getMonth()+1}/${d.getDate()} ${d.toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12:true})}`;
         });
         const bpmData = filtered.map(item => item.bpm);
         updateChart(labels, bpmData);
-
-        const isVisible = document.getElementById('collapseContent').style.display === "block";
-        document.getElementById('toggleIndicator').innerText = `${isVisible ? '點擊收起' : '點擊展開'} 共 ${filtered.length} 筆 ${isVisible ? '▴' : '▾'}`;
     }
 
     function updateChart(labels, data) {
@@ -340,16 +335,17 @@
         });
     }
 
-    // 控制歷史紀錄區塊開啟/關閉
-    function toggleCollapse() {
-        const content = document.getElementById('collapseContent');
-        const indicator = document.getElementById('toggleIndicator');
+    // 控制平均心跳區塊展開 / 收起
+    function toggleAvgSection() {
+        const content = document.getElementById('avgContent');
+        const indicator = document.getElementById('avgIndicator');
+        
         if (content.style.display === "block") {
             content.style.display = "none";
-            indicator.innerText = indicator.innerText.replace('收起', '展開').replace('▴', '▾');
+            indicator.innerText = "點擊展開 ▾";
         } else {
             content.style.display = "block";
-            indicator.innerText = indicator.innerText.replace('展開', '收起').replace('▾', '▴');
+            indicator.innerText = "點擊收起 ▴";
         }
     }
 
