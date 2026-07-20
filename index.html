@@ -25,7 +25,7 @@
         }
         .container { width: 100%; max-width: 900px; }
         
-        /* 即時看板 (保持原樣) */
+        /* 1. 即時看板 */
         .live-card { 
             background: white; 
             padding: 20px; 
@@ -56,12 +56,12 @@
         .yes { background-color: #e6f4ea; color: #137333; }
         .no { background-color: #fce8e6; color: #c5221f; }
 
-        /* 平均心跳可點擊標題 */
-        .avg-header {
-            background-color: var(--primary-color); 
-            color: white; 
-            padding: 16px 20px; 
-            border-radius: 12px; 
+        /* 大摺疊標題列 */
+        .main-toggle-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -69,24 +69,30 @@
             font-weight: bold;
             font-size: 18px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            user-select: none;
         }
-        .avg-header:hover { opacity: 0.95; }
-        
-        /* 平均心跳展開內容 */
-        .avg-content {
+        .main-toggle-header:hover { opacity: 0.95; }
+
+        /* 被打包的整個紅框區域 (預設隱藏) */
+        .history-wrapper {
             display: none;
+            margin-top: 15px;
+        }
+
+        /* 所選區間平均心跳 */
+        .avg-bar { 
             background-color: var(--primary-color); 
             color: white; 
             text-align: center; 
             padding: 20px; 
-            border-radius: 0 0 12px 12px; 
-            margin-top: -8px;
-            margin-bottom: 20px;
+            border-radius: 12px; 
+            margin-bottom: 20px; 
         }
+        .avg-title { font-size: 16px; letter-spacing: 1px; margin-bottom: 5px; }
         .avg-value { font-size: 44px; font-weight: bold; }
         .avg-range { font-size: 12px; opacity: 0.8; margin-top: 5px; }
 
-        /* 卡片與表單 */
+        /* 通用卡片與表單 */
         .card { 
             background: white; 
             padding: 24px; 
@@ -104,11 +110,10 @@
         .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-clear { background: #e9ecef; color: #495057; }
         
-        /* 圖表區塊 */
+        /* 圖表與表格區塊 */
         .chart-container { position: relative; height: 300px; width: 100%; }
         h3 { margin-top: 0; color: #333; font-size: 18px; }
 
-        /* 表格容器 */
         .table-wrapper {
             max-height: 400px; 
             overflow-y: auto; 
@@ -125,68 +130,74 @@
 
 <div class="container">
     
-    <!-- 1. 即時看板 (完全未修改) -->
+    <!-- 1. 即時心率看板 (常駐顯示) -->
     <div class="live-card">
         <div id="liveHeart" class="live-heart">❤️</div>
         <div class="live-bpm"><span id="liveBpm">--</span> <span style="font-size:16px;color:#666;">BPM (即時)</span></div>
         <div id="liveStatus" class="status-badge no">未配戴</div>
     </div>
 
-    <!-- 2. 所選區間平均心跳 (按一下開啟 / 按一下收起) -->
-    <div style="margin-bottom: 20px;">
-        <div class="avg-header" onclick="toggleAvgSection()">
-            <span>所選區間平均心跳</span>
-            <span id="avgIndicator" style="font-size:14px; font-weight:normal;">點擊展開 ▾</span>
-        </div>
-        <div id="avgContent" class="avg-content">
+    <!-- 2. 紅框區域開關按鈕 (點擊展開 / 收起) -->
+    <div class="main-toggle-header" onclick="toggleMainHistory()">
+        <span>歷史數據與分析</span>
+        <span id="mainIndicator" style="font-size:14px; font-weight:normal;">點擊展開 ▾</span>
+    </div>
+
+    <!-- 3. 紅框包含的所有內容 (預設隱藏) -->
+    <div id="historyWrapper" class="history-wrapper">
+        
+        <!-- 所選區間平均心跳 -->
+        <div class="avg-bar">
+            <div class="avg-title">所選區間平均心跳</div>
             <div class="avg-value"><span id="avgBpmText">--</span> <span style="font-size:18px;">/min</span></div>
             <div class="avg-range" id="avgRangeText">查詢區間：全部 ~ 全部</div>
         </div>
-    </div>
 
-    <!-- 3. 心率活動度走勢圖 -->
-    <div class="card">
-        <h3>心率活動度走勢圖</h3>
-        <div class="chart-container">
-            <canvas id="heartChart"></canvas>
-        </div>
-    </div>
-
-    <!-- 4. 量測歷史明細 (直接顯示，含日期輸入欄) -->
-    <div class="card">
-        <h3>量測歷史明細</h3>
-        
-        <!-- 日期選擇區 -->
-        <div class="row">
-            <div class="col">
-                <label>開始時間</label>
-                <input type="date" id="startDate" onchange="filterData()">
-            </div>
-            <div class="col">
-                <label>結束時間</label>
-                <input type="date" id="endDate" onchange="filterData()">
+        <!-- 心率活動度走勢圖 -->
+        <div class="card">
+            <h3>心率活動度走勢圖</h3>
+            <div class="chart-container">
+                <canvas id="heartChart"></canvas>
             </div>
         </div>
-        <div class="btn-group">
-            <button class="btn btn-clear" onclick="clearFilter()">清空條件 (顯示全部)</button>
+
+        <!-- 量測歷史明細 -->
+        <div class="card">
+            <h3>量測歷史明細</h3>
+            
+            <!-- 日期選擇區 -->
+            <div class="row">
+                <div class="col">
+                    <label>開始時間</label>
+                    <input type="date" id="startDate" onchange="filterData()">
+                </div>
+                <div class="col">
+                    <label>結束時間</label>
+                    <input type="date" id="endDate" onchange="filterData()">
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-clear" onclick="clearFilter()">清空條件 (顯示全部)</button>
+            </div>
+
+            <!-- 明細列表 -->
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>量測時間</th>
+                            <th>心拍數 (BPM)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr>
+                            <td colspan="2" style="text-align:center; color:#999;">載入中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <!-- 明細列表 -->
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>量測時間</th>
-                        <th>心拍數 (BPM)</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTableBody">
-                    <tr>
-                        <td colspan="2" style="text-align:center; color:#999;">載入中...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
     </div>
 
 </div>
@@ -205,7 +216,7 @@
     let allHistoryData = []; 
     let heartChart = null;
 
-    // 1. 監聽即時數據 (/currentStatus) - 保持原樣
+    // 1. 監聽即時數據 (/currentStatus)
     database.ref('currentStatus').on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -335,17 +346,19 @@
         });
     }
 
-    // 控制平均心跳區塊展開 / 收起
-    function toggleAvgSection() {
-        const content = document.getElementById('avgContent');
-        const indicator = document.getElementById('avgIndicator');
+    // 控制整個紅框區塊（歷史數據與圖表）開啟 / 關閉
+    function toggleMainHistory() {
+        const wrapper = document.getElementById('historyWrapper');
+        const indicator = document.getElementById('mainIndicator');
         
-        if (content.style.display === "block") {
-            content.style.display = "none";
+        if (wrapper.style.display === "block") {
+            wrapper.style.display = "none";
             indicator.innerText = "點擊展開 ▾";
         } else {
-            content.style.display = "block";
+            wrapper.style.display = "block";
             indicator.innerText = "點擊收起 ▴";
+            // 展開時重繪圖表，防止寬度縮小
+            if (heartChart) heartChart.resize();
         }
     }
 
